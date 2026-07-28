@@ -54,22 +54,16 @@ class ChatViewModel @Inject constructor(
     data class UiState(
         val items: List<ChatItem> = emptyList(),
         val processing: Boolean = false,
-        /** 需要打字机动画展示的消息 id（仅本次会话内新产生的 AI 回复） */
-        val animatedId: Long? = null,
     )
 
     private val processing = MutableStateFlow(false)
 
-    /** 本次会话内最新一条 AI 回复的 id，历史消息重新进入时不重播动画 */
-    private val animateEntryId = MutableStateFlow<Long?>(null)
-
     val uiState: StateFlow<UiState> =
-        combine(chatRepository.observeAll(), processing, animateEntryId) { entries, busy, animId ->
+        combine(chatRepository.observeAll(), processing) { entries, busy ->
             val items = entries.mapNotNull { it.toChatItem() }
             UiState(
                 items = items.ifEmpty { listOf(GREETING) },
                 processing = busy,
-                animatedId = animId,
             )
         }.stateIn(
             viewModelScope,
@@ -91,12 +85,9 @@ class ChatViewModel @Inject constructor(
 
                 when (val reply = agent.process(trimmed, history)) {
                     is AgentReply.TasksCreated -> persistCreated(reply)
-                    is AgentReply.Text -> {
-                        val id = chatRepository.insert(
-                            ChatEntry(type = ChatEntryType.ASSISTANT, content = reply.content)
-                        )
-                        animateEntryId.value = id
-                    }
+                    is AgentReply.Text -> chatRepository.insert(
+                        ChatEntry(type = ChatEntryType.ASSISTANT, content = reply.content)
+                    )
                     is AgentReply.Error -> chatRepository.insert(
                         ChatEntry(type = ChatEntryType.ASSISTANT, content = reply.message, isError = true)
                     )
@@ -121,11 +112,6 @@ class ChatViewModel @Inject constructor(
                 ChatEntry(type = ChatEntryType.ASSISTANT, content = "已撤销「${card.draft.title}」。")
             )
         }
-    }
-
-    /** 打字机动画播完后清除标记，避免列表回滚时重播 */
-    fun onAnimationDone(entryId: Long) {
-        if (animateEntryId.value == entryId) animateEntryId.value = null
     }
 
     /** 清空上下文：插入分隔线，之后的对话不再携带此前历史 */
@@ -160,8 +146,7 @@ class ChatViewModel @Inject constructor(
             )
         }
         val summary = reply.message?.takeIf { it.isNotBlank() } ?: buildSummary(reply.created)
-        val id = chatRepository.insert(ChatEntry(type = ChatEntryType.ASSISTANT, content = summary))
-        animateEntryId.value = id
+        chatRepository.insert(ChatEntry(type = ChatEntryType.ASSISTANT, content = summary))
     }
 
     private fun buildSummary(created: List<CreatedTask>): String = buildString {

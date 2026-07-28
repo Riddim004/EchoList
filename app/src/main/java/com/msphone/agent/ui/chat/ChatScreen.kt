@@ -43,7 +43,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -57,7 +56,6 @@ import com.msphone.agent.ui.common.formatFriendlyTime
 import com.msphone.agent.ui.theme.LifeColor
 import com.msphone.agent.ui.theme.WorkColor
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 /** 助手页：顶栏 + 聊天流 + 任务结果卡片 + 文字输入栏 */
 @Composable
@@ -68,7 +66,6 @@ fun ChatScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var input by rememberSaveable { mutableStateOf("") }
     val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
 
     // 新消息自动滚动到底部
     LaunchedEffect(uiState.items.size, uiState.processing) {
@@ -88,14 +85,7 @@ fun ChatScreen(
             items(uiState.items, key = { it.id }) { item ->
                 when (item) {
                     is ChatViewModel.ChatItem.User -> UserBubble(item.text)
-                    is ChatViewModel.ChatItem.Assistant -> AssistantBubble(
-                        text = item.text,
-                        isError = item.isError,
-                        animate = item.id == uiState.animatedId,
-                        // 打字机每次增长都跟随滚到底部，避免正文长出可视区
-                        onGrow = { scope.launch { listState.scrollToItem(uiState.items.size) } },
-                        onAnimationDone = { viewModel.onAnimationDone(item.id) },
-                    )
+                    is ChatViewModel.ChatItem.Assistant -> AssistantBubble(item.text, item.isError)
                     is ChatViewModel.ChatItem.TaskCard -> TaskCardView(
                         card = item,
                         onUndo = { viewModel.undoTask(item.id) },
@@ -194,27 +184,8 @@ private fun UserBubble(text: String) {
 }
 
 @Composable
-private fun AssistantBubble(
-    text: String,
-    isError: Boolean,
-    animate: Boolean = false,
-    onGrow: () -> Unit = {},
-    onAnimationDone: () -> Unit = {},
-) {
-    // 打字机效果：仅对本次会话新产生的回复播放，历史消息直接全量展示
-    var visibleCount by remember(text, animate) {
-        mutableIntStateOf(if (animate) 0 else text.length)
-    }
-    LaunchedEffect(text, animate) {
-        if (!animate) return@LaunchedEffect
-        while (visibleCount < text.length) {
-            delay(24)
-            visibleCount = (visibleCount + 2).coerceAtMost(text.length)
-            onGrow()
-        }
-        onAnimationDone()
-    }
-
+private fun AssistantBubble(text: String, isError: Boolean) {
+    // 回复文本到达时已是完整内容，立即全量展示，不做伪流式动画人为拖慢
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
         Surface(
             color = if (isError) MaterialTheme.colorScheme.errorContainer
@@ -224,7 +195,7 @@ private fun AssistantBubble(
         ) {
             SelectionContainer {
                 Text(
-                    text.take(visibleCount),
+                    text,
                     color = if (isError) MaterialTheme.colorScheme.onErrorContainer
                     else MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium,
