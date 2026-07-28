@@ -50,6 +50,10 @@ data class FunctionSpec(
     val parameters: JsonObject,
 )
 
+/** 思考模式开关：GLM-4.7-Flash 为混合思考模型，开启后推理更准（reasoning_content 字段由 ignoreUnknownKeys 忽略） */
+@Serializable
+data class Thinking(val type: String)
+
 @Serializable
 data class ChatRequest(
     val model: String,
@@ -57,6 +61,7 @@ data class ChatRequest(
     val temperature: Double = 0.1,
     val tools: List<ToolDefinition>? = null,
     @SerialName("tool_choice") val toolChoice: String? = null,
+    val thinking: Thinking? = null,
 )
 
 @Serializable

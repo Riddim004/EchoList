@@ -25,12 +25,13 @@ android {
         minSdk = 26
         targetSdk = 34
         // 每次迭代交付同步递增：versionCode +1，versionName 按 0.x.0 提升
-        versionCode = 10
-        versionName = "0.10.0"
+        versionCode = 11
+        versionName = "0.11.0"
 
         buildConfigField("String", "GLM_API_KEY", "\"$glmApiKey\"")
         buildConfigField("String", "GLM_BASE_URL", "\"https://open.bigmodel.cn/api/paas/v4/\"")
-        buildConfigField("String", "GLM_MODEL", "\"glm-4-flash\"")
+        // 智谱当前免费模型：GLM-4.7-Flash（旧 glm-4-flash 系列请求已被平台自动路由到该模型，此处显式锁定）
+        buildConfigField("String", "GLM_MODEL", "\"glm-4.7-flash\"")
     }
 
     buildTypes {

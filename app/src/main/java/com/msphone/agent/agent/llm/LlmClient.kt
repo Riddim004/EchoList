@@ -36,6 +36,8 @@ class GlmLlmClient @Inject constructor(
                         temperature = 0.1,
                         tools = tools.takeIf { it.isNotEmpty() },
                         toolChoice = if (tools.isNotEmpty()) "auto" else null,
+                        // GLM-4.7-Flash 为混合思考模型，显式开启思考：免费推理能力提升时间换算/多任务拆分准确性，代价是响应略慢
+                        thinking = Thinking(type = "enabled"),
                     )
                 )
                 return response.choices.firstOrNull()?.message
