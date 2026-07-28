@@ -1,5 +1,7 @@
 package com.msphone.agent.ui.tasks
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,6 +37,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -58,6 +62,7 @@ fun TaskListScreen(viewModel: TaskListViewModel = hiltViewModel()) {
     val counts by viewModel.counts.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val clipboard = LocalClipboardManager.current
 
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
         Column(
@@ -99,8 +104,19 @@ fun TaskListScreen(viewModel: TaskListViewModel = hiltViewModel()) {
                         TaskCard(
                             task = task,
                             onToggleDone = {
-                                if (task.status == TaskStatus.DONE) viewModel.reopen(task)
-                                else viewModel.complete(task)
+                                if (task.status == TaskStatus.DONE) {
+                                    viewModel.reopen(task)
+                                } else {
+                                    // 完成后用 Snackbar 提供撤销窗口，防止误触导致任务直接消失
+                                    viewModel.complete(task)
+                                    scope.launch {
+                                        val result = snackbarHostState.showSnackbar(
+                                            message = "已完成「${task.title}」",
+                                            actionLabel = "撤销",
+                                        )
+                                        if (result == SnackbarResult.ActionPerformed) viewModel.reopen(task)
+                                    }
+                                }
                             },
                             onDelete = {
                                 viewModel.delete(task)
@@ -112,6 +128,14 @@ fun TaskListScreen(viewModel: TaskListViewModel = hiltViewModel()) {
                                     if (result == SnackbarResult.ActionPerformed) viewModel.undoDelete()
                                 }
                             },
+                            onCopy = {
+                                val text = buildString {
+                                    append(task.title)
+                                    task.remindAtMillis?.let { append("  ") ; append(formatDateWeekTime(it)) }
+                                }
+                                clipboard.setText(AnnotatedString(text))
+                                scope.launch { snackbarHostState.showSnackbar("已复制：$text") }
+                            },
                         )
                     }
                 }
@@ -120,13 +144,22 @@ fun TaskListScreen(viewModel: TaskListViewModel = hiltViewModel()) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun TaskCard(task: Task, onToggleDone: () -> Unit, onDelete: () -> Unit) {
+private fun TaskCard(
+    task: Task,
+    onToggleDone: () -> Unit,
+    onDelete: () -> Unit,
+    onCopy: () -> Unit,
+) {
     val done = task.status == TaskStatus.DONE
     val categoryColor = if (task.category == TaskCategory.WORK) WorkColor else LifeColor
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            // 长按卡片复制任务内容
+            .combinedClickable(onClick = {}, onLongClick = onCopy),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {

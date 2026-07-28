@@ -2,6 +2,9 @@
 <resources>
     <string name="app_name">语忆清单</string>
     <string name="notification_channel_name">任务提醒</string>
+    <string name="channel_ring_name">任务提醒（响铃）</string>
+    <string name="channel_vibrate_name">任务提醒（震动）</string>
+    <string name="channel_silent_name">任务提醒（静音）</string>
     <string name="notification_channel_desc">任务到期时的提醒通知</string>
     <string name="action_done">完成</string>
     <string name="action_snooze">稍后提醒</string>

@@ -16,12 +16,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -38,7 +40,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -51,13 +56,19 @@ import com.msphone.agent.domain.model.TaskCategory
 import com.msphone.agent.ui.common.formatFriendlyTime
 import com.msphone.agent.ui.theme.LifeColor
 import com.msphone.agent.ui.theme.WorkColor
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /** 助手页：顶栏 + 聊天流 + 任务结果卡片 + 文字输入栏 */
 @Composable
-fun ChatScreen(viewModel: ChatViewModel = hiltViewModel()) {
+fun ChatScreen(
+    onOpenSettings: () -> Unit,
+    viewModel: ChatViewModel = hiltViewModel(),
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var input by rememberSaveable { mutableStateOf("") }
     val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
 
     // 新消息自动滚动到底部
     LaunchedEffect(uiState.items.size, uiState.processing) {
@@ -65,7 +76,7 @@ fun ChatScreen(viewModel: ChatViewModel = hiltViewModel()) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        HeaderBar(onClearContext = viewModel::clearContext)
+        HeaderBar(onOpenSettings = onOpenSettings, onClearContext = viewModel::clearContext)
         LazyColumn(
             state = listState,
             modifier = Modifier
@@ -77,7 +88,14 @@ fun ChatScreen(viewModel: ChatViewModel = hiltViewModel()) {
             items(uiState.items, key = { it.id }) { item ->
                 when (item) {
                     is ChatViewModel.ChatItem.User -> UserBubble(item.text)
-                    is ChatViewModel.ChatItem.Assistant -> AssistantBubble(item.text, item.isError)
+                    is ChatViewModel.ChatItem.Assistant -> AssistantBubble(
+                        text = item.text,
+                        isError = item.isError,
+                        animate = item.id == uiState.animatedId,
+                        // 打字机每次增长都跟随滚到底部，避免正文长出可视区
+                        onGrow = { scope.launch { listState.scrollToItem(uiState.items.size) } },
+                        onAnimationDone = { viewModel.onAnimationDone(item.id) },
+                    )
                     is ChatViewModel.ChatItem.TaskCard -> TaskCardView(
                         card = item,
                         onUndo = { viewModel.undoTask(item.id) },
@@ -103,7 +121,7 @@ fun ChatScreen(viewModel: ChatViewModel = hiltViewModel()) {
 }
 
 @Composable
-private fun HeaderBar(onClearContext: () -> Unit) {
+private fun HeaderBar(onOpenSettings: () -> Unit, onClearContext: () -> Unit) {
     Surface(shadowElevation = 2.dp) {
         Row(
             Modifier
@@ -115,8 +133,15 @@ private fun HeaderBar(onClearContext: () -> Unit) {
                 "智能助手",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.weight(1f),
             )
+            IconButton(onClick = onOpenSettings) {
+                Icon(
+                    Icons.Filled.Settings,
+                    contentDescription = "设置",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.weight(1f))
             IconButton(onClick = onClearContext) {
                 Icon(
                     Icons.Filled.DeleteSweep,
@@ -155,18 +180,41 @@ private fun UserBubble(text: String) {
             shape = RoundedCornerShape(16.dp, 4.dp, 16.dp, 16.dp),
             modifier = Modifier.widthIn(max = 300.dp),
         ) {
-            Text(
-                text,
-                color = MaterialTheme.colorScheme.onPrimary,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-            )
+            // SelectionContainer 支持长按选择复制
+            SelectionContainer {
+                Text(
+                    text,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun AssistantBubble(text: String, isError: Boolean) {
+private fun AssistantBubble(
+    text: String,
+    isError: Boolean,
+    animate: Boolean = false,
+    onGrow: () -> Unit = {},
+    onAnimationDone: () -> Unit = {},
+) {
+    // 打字机效果：仅对本次会话新产生的回复播放，历史消息直接全量展示
+    var visibleCount by remember(text, animate) {
+        mutableIntStateOf(if (animate) 0 else text.length)
+    }
+    LaunchedEffect(text, animate) {
+        if (!animate) return@LaunchedEffect
+        while (visibleCount < text.length) {
+            delay(24)
+            visibleCount = (visibleCount + 2).coerceAtMost(text.length)
+            onGrow()
+        }
+        onAnimationDone()
+    }
+
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
         Surface(
             color = if (isError) MaterialTheme.colorScheme.errorContainer
@@ -174,24 +222,34 @@ private fun AssistantBubble(text: String, isError: Boolean) {
             shape = RoundedCornerShape(4.dp, 16.dp, 16.dp, 16.dp),
             modifier = Modifier.widthIn(max = 300.dp),
         ) {
-            Text(
-                text,
-                color = if (isError) MaterialTheme.colorScheme.onErrorContainer
-                else MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-            )
+            SelectionContainer {
+                Text(
+                    text.take(visibleCount),
+                    color = if (isError) MaterialTheme.colorScheme.onErrorContainer
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                )
+            }
         }
     }
 }
 
 @Composable
 private fun ProcessingBubble() {
+    // 动态省略号：正在思考. / .. / ...
+    var dots by remember { mutableIntStateOf(1) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(400)
+            dots = dots % 3 + 1
+        }
+    }
     Row(verticalAlignment = Alignment.CenterVertically) {
         CircularProgressIndicator(Modifier.height(16.dp).widthIn(max = 16.dp), strokeWidth = 2.dp)
         Spacer(Modifier.widthIn(min = 8.dp))
         Text(
-            "  正在解析…",
+            "  正在思考" + ".".repeat(dots),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

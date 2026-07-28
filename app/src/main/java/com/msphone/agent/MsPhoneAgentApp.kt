@@ -28,7 +28,7 @@ class MsPhoneAgentApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        notificationHelper.ensureChannel()
+        notificationHelper.ensureChannels()
         // 启动时闹钟对账：重新注册缺失的提醒闹钟
         appScope.launch {
             ReminderReconciler.reconcile(repository, scheduler)

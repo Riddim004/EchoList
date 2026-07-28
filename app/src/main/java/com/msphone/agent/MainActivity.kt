@@ -22,10 +22,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.msphone.agent.ui.chat.ChatScreen
+import com.msphone.agent.ui.settings.SettingsScreen
+import com.msphone.agent.ui.settings.SettingsViewModel
 import com.msphone.agent.ui.tasks.TaskListScreen
 import com.msphone.agent.ui.theme.MsPhoneAgentTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -36,7 +41,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MsPhoneAgentTheme {
+            val settingsViewModel: SettingsViewModel = hiltViewModel()
+            val themeMode by settingsViewModel.themeMode.collectAsStateWithLifecycle()
+            MsPhoneAgentTheme(themeMode) {
                 MainScreen()
             }
         }
@@ -46,6 +53,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun MainScreen() {
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    var showSettings by rememberSaveable { mutableStateOf(false) }
 
     // Android 13+ 首次启动申请通知权限
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
@@ -55,6 +63,12 @@ private fun MainScreen() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
+    }
+
+    // 设置页以全屏覆盖展示，返回后回到原 Tab
+    if (showSettings) {
+        SettingsScreen(onBack = { showSettings = false })
+        return
     }
 
     Scaffold(
@@ -81,7 +95,7 @@ private fun MainScreen() {
                 .padding(padding)
         ) {
             when (selectedTab) {
-                0 -> ChatScreen()
+                0 -> ChatScreen(onOpenSettings = { showSettings = true })
                 else -> TaskListScreen()
             }
         }
