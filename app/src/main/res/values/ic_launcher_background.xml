@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 自适应图标背景层：与图标蓝色渐变底同色系，前景被遮罩裁切时边缘无缝 -->
+    <color name="ic_launcher_background">#2F55D8</color>
+</resources>
