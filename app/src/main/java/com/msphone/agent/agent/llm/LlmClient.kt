@@ -25,28 +25,33 @@ class GlmLlmClient @Inject constructor(
 ) : LlmClient {
 
     override suspend fun chat(messages: List<ChatMessage>, tools: List<ToolDefinition>): ChatMessage {
+        var model = BuildConfig.GLM_MODEL
         var rateLimitRetries = 0
         var timeoutRetries = 0
         while (true) {
             try {
                 val response = api.chat(
                     ChatRequest(
-                        model = BuildConfig.GLM_MODEL,
+                        model = model,
                         messages = messages,
                         temperature = 0.1,
                         tools = tools.takeIf { it.isNotEmpty() },
                         toolChoice = if (tools.isNotEmpty()) "auto" else null,
-                        // GLM-4.7-Flash 为混合思考模型，显式开启思考：免费推理能力提升时间换算/多任务拆分准确性，代价是响应略慢
+                        // 混合思考模型显式开启思考：提升时间换算/多任务拆分准确性，代价是响应略慢
                         thinking = Thinking(type = "enabled"),
                     )
                 )
                 return response.choices.firstOrNull()?.message
                     ?: throw IOException("GLM 返回结果为空")
             } catch (e: HttpException) {
-                // 429 限流：指数退避重试（1s / 2s）
                 if (e.code() == 429 && rateLimitRetries < MAX_RATE_LIMIT_RETRIES) {
+                    // 429 限流：指数退避重试（1s / 2s）
                     delay(1000L shl rateLimitRetries)
                     rateLimitRetries++
+                } else if (model != BuildConfig.GLM_FALLBACK_MODEL) {
+                    // 旗舰资源包耗尽/计费失败/限流重试无效 → 自动降级到免费模型，不断服不产费
+                    model = BuildConfig.GLM_FALLBACK_MODEL
+                    rateLimitRetries = 0
                 } else {
                     throw e
                 }

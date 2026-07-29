@@ -25,13 +25,15 @@ android {
         minSdk = 26
         targetSdk = 34
         // 每次迭代交付同步递增：versionCode +1，versionName 按 0.x.0 提升
-        versionCode = 13
-        versionName = "0.13.0"
+        versionCode = 14
+        versionName = "0.14.0"
 
         buildConfigField("String", "GLM_API_KEY", "\"$glmApiKey\"")
         buildConfigField("String", "GLM_BASE_URL", "\"https://open.bigmodel.cn/api/paas/v4/\"")
-        // 智谱当前免费模型：GLM-4.7-Flash（旧 glm-4-flash 系列请求已被平台自动路由到该模型，此处显式锁定）
-        buildConfigField("String", "GLM_MODEL", "\"glm-4.7-flash\"")
+        // 主模型：智谱旗舰 GLM-5.2（走 200 万 tokens 赠送资源包，有效期 3 个月）；
+        // 降级模型：资源包耗尽/计费失败时自动切回免费的 GLM-4.7-Flash，不断服不产费
+        buildConfigField("String", "GLM_MODEL", "\"glm-5.2\"")
+        buildConfigField("String", "GLM_FALLBACK_MODEL", "\"glm-4.7-flash\"")
     }
 
     buildTypes {
