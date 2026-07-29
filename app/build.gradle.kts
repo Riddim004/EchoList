@@ -25,8 +25,8 @@ android {
         minSdk = 26
         targetSdk = 34
         // 每次迭代交付同步递增：versionCode +1，versionName 按 0.x.0 提升
-        versionCode = 14
-        versionName = "0.14.0"
+        versionCode = 15
+        versionName = "0.15.0"
 
         buildConfigField("String", "GLM_API_KEY", "\"$glmApiKey\"")
         buildConfigField("String", "GLM_BASE_URL", "\"https://open.bigmodel.cn/api/paas/v4/\"")

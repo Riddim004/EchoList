@@ -10,7 +10,7 @@ An AI-powered task manager for Android. Describe your to-dos in natural Chinese,
 ## ✨ 功能 Features
 
 - 💬 **对话式创建** — 聊天输入即建任务，免确认直接落库，卡片一键撤销
-- 🧠 **AI 语义解析** — 智谱旗舰 GLM-5.2（思考模式）提取时间、事件、分类；额度耗尽自动降级免费 GLM-4.7-Flash
+- 🧠 **AI 语义解析** — 智谱旗舰 GLM-5.2 提取时间、事件、分类；额度耗尽自动降级免费 GLM-4.7-Flash
 - 🏷 **智能分类** — 自动归入「工作 / 生活」，支持改名、改分类、批量删除
 - ⏰ **精确提醒** — AlarmManager 精确闹钟，Doze 可触发，重启后自动恢复
 - 🗂 **任务清单** — 筛选计数、今日/明日角标、星期几显示、完成/删除/撤销
@@ -47,7 +47,7 @@ GLM-5.2 ───────── tool_calls ──► ToolCallingHarness (Too
 | UI | Jetpack Compose + Material 3 |
 | 架构 | MVVM + Hilt DI + Kotlin Coroutines/Flow |
 | Agent | 自研 Tool Calling Harness（注册制工具、JSON Schema 校验、防幻觉检测） |
-| 模型 | 智谱 GLM-5.2（旗舰，思考模式），资源包耗尽自动降级 GLM-4.7-Flash（免费）；Retrofit + kotlinx.serialization |
+| 模型 | 智谱 GLM-5.2（旗舰，关思考求快），资源包耗尽自动降级 GLM-4.7-Flash（免费，开思考求准）；Retrofit + kotlinx.serialization |
 | 存储 | Room（任务 / 聊天记录 / AI 解析历史三张表） |
 | 提醒 | AlarmManager 精确闹钟 + 前台通知 + 开机恢复对账 |
 

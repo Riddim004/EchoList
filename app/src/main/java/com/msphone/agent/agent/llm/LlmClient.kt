@@ -37,8 +37,11 @@ class GlmLlmClient @Inject constructor(
                         temperature = 0.1,
                         tools = tools.takeIf { it.isNotEmpty() },
                         toolChoice = if (tools.isNotEmpty()) "auto" else null,
-                        // 混合思考模型显式开启思考：提升时间换算/多任务拆分准确性，代价是响应略慢
-                        thinking = Thinking(type = "enabled"),
+                        // 实测结论（v0.15.0 横评）：旗舰 glm-5.2 关思考仍全对且延迟减半（~5.6s vs 8.7s）；
+                        // 降级的 4.7-flash 底子弱，保留思考撑准确率
+                        thinking = Thinking(
+                            type = if (model == BuildConfig.GLM_FALLBACK_MODEL) "enabled" else "disabled"
+                        ),
                     )
                 )
                 return response.choices.firstOrNull()?.message
