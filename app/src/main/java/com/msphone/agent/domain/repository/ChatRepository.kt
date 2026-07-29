@@ -20,4 +20,13 @@ interface ChatRepository {
 
     /** 插入上下文分隔线（开启新会话） */
     suspend fun insertDivider()
+
+    /**
+     * 自动清理堆积的旧记录：删除超过保留期且不属于当前会话的消息。
+     * 当前会话（最后一条分隔线之后）永不误删；无分隔线时保底保留最近的滑动窗口条数。
+     */
+    suspend fun prune(retentionMillis: Long)
+
+    /** 清空全部聊天记录（任务数据不受影响） */
+    suspend fun clearAll()
 }

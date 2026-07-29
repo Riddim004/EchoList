@@ -38,4 +38,18 @@ interface ChatMessageDao {
 
     @Query("UPDATE chat_messages SET undone = 1 WHERE id = :id")
     suspend fun markUndone(id: Long)
+
+    @Query("SELECT MAX(id) FROM chat_messages WHERE type = 'DIVIDER'")
+    suspend fun lastDividerId(): Long?
+
+    /** 第 offset+1 新的记录 id（用于无分隔线时的保底保留边界） */
+    @Query("SELECT id FROM chat_messages ORDER BY id DESC LIMIT 1 OFFSET :offset")
+    suspend fun nthNewestId(offset: Int): Long?
+
+    /** 删除边界之前且超过保留期的旧记录 */
+    @Query("DELETE FROM chat_messages WHERE id < :boundaryId AND createdAt < :cutoff")
+    suspend fun deleteBefore(boundaryId: Long, cutoff: Long)
+
+    @Query("DELETE FROM chat_messages")
+    suspend fun deleteAll()
 }

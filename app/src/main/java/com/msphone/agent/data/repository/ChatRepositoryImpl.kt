@@ -32,6 +32,17 @@ class ChatRepositoryImpl @Inject constructor(
         dao.insert(ChatEntry(type = ChatEntryType.DIVIDER).toEntity())
     }
 
+    override suspend fun prune(retentionMillis: Long) {
+        val cutoff = System.currentTimeMillis() - retentionMillis
+        // 清理边界：当前会话起点（最后一条分隔线）；从未开过新对话时保底留最近 KEEP_MIN_ENTRIES 条
+        val boundary = dao.lastDividerId()
+            ?: dao.nthNewestId(KEEP_MIN_ENTRIES - 1)
+            ?: return
+        dao.deleteBefore(boundary, cutoff)
+    }
+
+    override suspend fun clearAll() = dao.deleteAll()
+
     // ---------- mapping ----------
 
     private fun ChatMessageEntity.toDomain(): ChatEntry = ChatEntry(
@@ -57,4 +68,9 @@ class ChatRepositoryImpl @Inject constructor(
         undone = undone,
         createdAt = createdAt,
     )
+
+    private companion object {
+        /** 与 TaskAgent.MAX_HISTORY_ENTRIES 对齐：至少保留一个完整滑动窗口 */
+        const val KEEP_MIN_ENTRIES = 20
+    }
 }

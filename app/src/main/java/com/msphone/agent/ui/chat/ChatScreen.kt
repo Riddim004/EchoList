@@ -20,9 +20,9 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
@@ -134,8 +134,8 @@ private fun HeaderBar(onOpenSettings: () -> Unit, onClearContext: () -> Unit) {
             Spacer(Modifier.weight(1f))
             IconButton(onClick = onClearContext) {
                 Icon(
-                    Icons.Filled.DeleteSweep,
-                    contentDescription = "清空上下文",
+                    Icons.Filled.Add,
+                    contentDescription = "新对话",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
